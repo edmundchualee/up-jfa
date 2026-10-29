@@ -139,6 +139,7 @@ input.pinin{font-family:var(--mono);letter-spacing:.2em;font-size:26px;text-alig
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.12.2/firebase-database-compat.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/canvas-confetti/1.9.3/confetti.browser.min.js"></script>
 <script>
 /* ================================================================== */
 /* 1. PASTE YOUR FIREBASE CONFIG HERE (Firebase console → Project      */
@@ -158,18 +159,18 @@ const FIREBASE_CONFIG = {
 /* 2. QUESTIONS — edit freely. `a` is the index of the correct option. */
 /* ================================================================== */
 const QUESTIONS = [
-  {q:"What does PSEi stand for?", o:["Philippine Stock Exchange index","Philippine Securities & Equities index","Pacific Stock Exchange index","Philippine Stock Earnings index"], a:0, note:"The PSEi is the main benchmark of the Philippine Stock Exchange."},
+  {q:"What does WACC stand for?", o:["Weighted Asset Cost of Credit","Working Average Capital Cost","Weighted Annual Cash Coverage","Weighted Average Cost of Capital"], a:3, note:"WACC blends the cost of a company's debt and equity, weighted by how much of each it uses."},
   {q:"How many companies make up the PSEi?", o:["20","30","50","100"], a:1, note:"The index tracks 30 of the largest, most liquid PSE-listed companies."},
   {q:"A stock trades at a P/E of 20 and earns ₱5 per share. What's its price?", o:["₱4","₱25","₱100","₱200"], a:2, note:"Price = P/E × EPS = 20 × ₱5 = ₱100."},
-  {q:"A fall of 20% or more from a recent high is called a…", o:["Correction","Bear market","Recession","Dead cat bounce"], a:1, note:"A 10% drop is usually called a correction; 20% is a bear market."},
+  {q:"In CAPM, what does a stock's beta measure?", o:["Its dividend payout","Its profit margin","How much it moves with the market","How much debt it has"], a:2, note:"A beta of 1.5 means the stock tends to move 1.5× as much as the market."},
   {q:"Which body sets the Philippines' key policy rate?", o:["Securities and Exchange Commission","Department of Finance","Philippine Stock Exchange","Bangko Sentral ng Pilipinas"], a:3, note:"The BSP's Monetary Board decides the policy rate."},
   {q:"When a bond's price goes up, its yield…", o:["Goes down","Goes up","Stays the same","Doubles"], a:0, note:"Bond prices and yields move in opposite directions."},
   {q:"Rule of 72: at 8% a year, your money doubles in about…", o:["6 years","9 years","12 years","18 years"], a:1, note:"72 ÷ 8 = 9 years."},
-  {q:"What does a stop-loss order do?", o:["Buys more when the price falls","Locks in the next dividend","Halts trading for the day","Sells when the price falls to a set level"], a:3, note:"It caps your downside by triggering a sell at the price you choose."},
-  {q:"The US Fed's FOMC mainly sets the…", o:["Federal funds rate target","S&P 500 rebalance","US income tax rate","Dollar–peso exchange rate"], a:0, note:"The FOMC sets a target range for the overnight rate banks charge each other."},
-  {q:"What is SM Investments Corporation's PSE ticker?", o:["SMPH","SMC","SM","SMIC"], a:2, note:"SMPH is SM Prime Holdings and SMC is San Miguel Corporation."},
+  {q:"A higher Sharpe ratio means a portfolio has…", o:["Better return for the risk taken","A higher dividend yield","Lower trading volume","More debt"], a:0, note:"The Sharpe ratio is return above the risk-free rate, divided by risk."},
+  {q:"A ₱100 stock pays a ₱4 dividend a year. What's its dividend yield?", o:["2%","25%","40%","4%"], a:3, note:"Dividend yield = ₱4 ÷ ₱100 = 4%."},
+  {q:"Which financial statement shows a company's assets, liabilities and equity?", o:["Income statement","Cash flow statement","Balance sheet","Statement of changes in equity"], a:2, note:"Assets = Liabilities + Equity, all on the balance sheet."},
 ];
-const LIMIT = 20000;   // ms per question
+const LIMIT = 30000;   // ms per question
 const BOARD_SIZE = 8;
 
 /* ------------------------------------------------------------------ */
@@ -317,6 +318,20 @@ function podiumHtml(list){
   const slot=(r,n)=>`<div class="step p${n}"><span class="who">${r?esc(r.nick):'—'}</span>${r?`<span class="pts">${fmt(r.score)} pts</span>`:''}<div class="block">${n}</div></div>`;
   return `<div class="podium">${slot(list[1],2)}${slot(list[0],1)}${slot(list[2],3)}</div>`;
 }
+let confettiFor=null;
+function celebrate(big){
+  if(confettiFor===pin || typeof window.confetti!=='function') return;
+  confettiFor=pin;
+  const colors=['#b3202a','#014421','#f2c14e','#fbf3e6','#0f6b45'];
+  const base={colors, disableForReducedMotion:true, zIndex:50};
+  const end=Date.now() + (big?4000:2500);
+  confetti({...base, particleCount: big?220:140, spread:100, startVelocity:45, origin:{y:0.6}});
+  (function frame(){
+    confetti({...base, particleCount:4, angle:60, spread:60, origin:{x:0, y:0.7}});
+    confetti({...base, particleCount:4, angle:120, spread:60, origin:{x:1, y:0.7}});
+    if(Date.now()<end) requestAnimationFrame(frame);
+  })();
+}
 function joinUrl(){ return location.origin + location.pathname + '?pin=' + pin; }
 
 /* ---------------- screens ---------------- */
@@ -382,6 +397,7 @@ function renderHost(){
       ${podiumHtml(list)}${list.length>3?`<span class="eyebrow">Full standings</span>${boardHtml(list,null,200)}`:''}`;
   }
   app.innerHTML = header(stats) + (state.phase!=='lobby'?tapeHtml(list):'') + body + `<div class="foot">${reset}</div>`;
+  if(state.phase==='final') celebrate(true);
   const qr=document.getElementById('qr');
   if(qr && window.QRCode){ new QRCode(qr,{text:joinUrl(), width:300, height:300, colorDark:'#2a0709', colorLight:'#ffffff', correctLevel:QRCode.CorrectLevel.M}); }
 }
@@ -411,6 +427,7 @@ function renderPlayer(){
       <div class="kv" style="width:100%"><div><span class="eyebrow">Your rank</span><b>${me?'#'+me.rank+' of '+list.length:'—'}</b></div><div><span class="eyebrow">Score</span><b>${me?fmt(me.score):'—'}</b></div></div></div>${boardHtml(list,uid,10)}`;
   }
   app.innerHTML = header(right) + `<div class="pad">${body}</div>`;
+  if(state.phase==='final') celebrate(!!(me && me.rank===1));
 }
 
 app.addEventListener('click', e=>{
